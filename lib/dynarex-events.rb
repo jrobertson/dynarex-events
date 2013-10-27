@@ -15,7 +15,7 @@ class DynarexEvents < DynarexCron
     
     opt = {sps_address: nil, drb_server: nil}.merge options
     
-    @entries, @cron_events  = [], []
+    @entries, @other_entries, @cron_events  = [], [], []
 
     @dynarex_file = dynarex_file
     load_events()
@@ -37,14 +37,15 @@ class DynarexEvents < DynarexCron
 
   def add_entry(h)
     # if the entry already exists delete it
-    @entries.delete @entries.find {|x| x[:job] == h[:job]}
-    @entries << h
+    @other_entries.delete @other_entries.find {|x| x[:job] == h[:job]}
+    @other_entries << h
   end
 
   def load_events()
     
     dynarex = Dynarex.new @dynarex_file
-    @entries = dynarex.to_h || @entries
+    @entries = (dynarex.to_h || []) + @other_entries
+
     @cron_events = self.to_a if @entries
     'events loaded and refreshed'
   end  
@@ -67,8 +68,9 @@ class DynarexEvents < DynarexCron
 
     @entries.inject([]) do |r,h| 
 
-      s = h[:expression].length > 0 ? h[:expression] : h[:date] + ' ' \
-            + h[:recurring].to_s 
+      s = h[:expression].to_s.length > 0 ? h[:expression] : 
+        h[:date] + ' ' + h[:recurring].to_s 
+
       h[:cron] = ChronicCron.new(s) 
       h[:job] ||= 'pub event: ' + h[:title]
 
