@@ -39,6 +39,8 @@ class DynarexEvents < DynarexCron
     # if the entry already exists delete it
     @other_entries.delete @other_entries.find {|x| x[:job] == h[:job]}
     @other_entries << h
+    self.refresh
+    'updated and refreshed'
   end
 
   def load_events()
