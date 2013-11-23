@@ -5,6 +5,7 @@
 require 'chronic_duration'
 require 'dynarex_cron'
 
+
 class DynarexEvents < DynarexCron
 
   attr_reader :to_a
@@ -14,13 +15,14 @@ class DynarexEvents < DynarexCron
   def initialize(dynarex_file=nil, options={})
     
     opt = {sps_address: nil, sps_port: '59000', drb_port: nil}.merge options
-    
+
+    @logger = Logger.new(opt[:log],'weekly') if opt[:log]    
     @entries, @other_entries, @cron_events  = [], [], []
 
-    @dynarex_file = dynarex_file
+    @dynarex = dynarex_file
     load_events()
 
-    @sps_address = opt[:sps_address]
+    @sps_address, @sps_port = opt[:sps_address], opt[:sps_port]
     
     if opt[:drb_port] then
 
@@ -45,7 +47,7 @@ class DynarexEvents < DynarexCron
 
   def load_events()
     
-    dynarex = Dynarex.new @dynarex_file
+    dynarex = @dynarex.is_a?(Dynarex) ? @dynarex : Dynarex.new(@dynarex)
     @entries = (dynarex.to_h || []) + @other_entries
 
     @cron_events = self.to_a if @entries
@@ -61,6 +63,7 @@ class DynarexEvents < DynarexCron
     params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
 
     c = WebSocket::EventMachine::Client
+    @ws = nil
 
     EventMachine.run do
 
