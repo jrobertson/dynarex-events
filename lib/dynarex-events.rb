@@ -9,11 +9,11 @@ class DynarexEvents < DynarexCron
 
   attr_reader :to_a
 
-  # options: e.g. sps_address, 'sps', drb_server: 58000
+  # options: e.g. sps_address: 'sps', drb_port: 58000
   #
   def initialize(dynarex_file=nil, options={})
     
-    opt = {sps_address: nil, drb_server: nil}.merge options
+    opt = {sps_address: nil, sps_port: '59000', drb_port: nil}.merge options
     
     @entries, @other_entries, @cron_events  = [], [], []
 
@@ -22,12 +22,12 @@ class DynarexEvents < DynarexCron
 
     @sps_address = opt[:sps_address]
     
-    if opt[:drb_server] then
+    if opt[:drb_port] then
 
       Thread.new {
         
         # start up the DRb service
-        DRb.start_service 'druby://:' + opt[:drb_server], self
+        DRb.start_service 'druby://:' + opt[:drb_port], self
 
         # wait for the DRb service to finish before exiting
         DRb.thread.join    
@@ -55,14 +55,23 @@ class DynarexEvents < DynarexCron
   alias refresh load_events
   
   def start
+
     @running = true
     puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
-    
-    while @running == true
-      iterate @cron_events
-      sleep 60 # wait for 60 seconds
+    params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
+
+    c = WebSocket::EventMachine::Client
+
+    EventMachine.run do
+
+      @ws = c.connect(params)
+
+      EM.add_periodic_timer(60) do
+        iterate @cron_events
+      end
+
     end
-  end  
+  end 
   
   def to_a()
 
