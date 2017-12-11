@@ -10,37 +10,19 @@ class DynarexEvents < DynarexCron
 
   attr_reader :to_a
 
-  def initialize(dynarex_file=nil, options={})
+  def initialize(dxfile=nil, sps_address: 'sps', sps_port: '59000',  \
+      log: nil, time_offset: 0)
     
-    opt = {sps_address: nil, time_offset: 0}.merge options
-    
-    @time_offset = opt[:time_offset]
-    @cron_events  = []
-    
-    @dynarex_file = dynarex_file
-    load_events()
+    super(dxfile, sps_address: sps_address, sps_port: sps_port,  \
+      log: log, time_offset: time_offset, logtopic: 'DynarexEvents')
 
-    @sps_address = opt[:sps_address]
-    
   end    
 
-  def load_events()
+  def load_entries(dx)
     
-    dynarex = Dynarex.new @dynarex_file
-    @entries = dynarex.to_h
-    @cron_events = self.to_a
-  end  
-  
-  alias refresh load_events
-  
-  def start
+    @entries = dx.to_h
+    @cron_entries = self.to_a
 
-    @running = true
-    puts '[' + Time.now.strftime(DF) + '] DynarexEvents started'
-    params = {uri: "ws://%s:%s" % [@sps_address, @sps_port]}    
-
-    RunEvery.new(seconds: 60) { iterate @cron_events }
-    
   end  
   
   def to_a()
@@ -55,7 +37,7 @@ class DynarexEvents < DynarexCron
         rmndr = {}
         rmndr[:cron] = ChronicCron.new((Chronic.parse(h[:date]) - 
                               ChronicDuration.parse(h[:reminder])).to_s, time)
-        rmndr[:fqm] = 'event: reminder ' + h[:title]
+        rmndr[:fqm] = 'event/reminder: ' + h[:title]
         r << rmndr
       end
 
